@@ -17,6 +17,7 @@ using Soenneker.OpenApi.Fixer.Abstract;
 using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
 using Soenneker.Utils.File.Download.Abstract;
+using Soenneker.Utils.Yaml.Abstract;
 using System.Collections.Generic;
 
 namespace Soenneker.Groq.Runners.OpenApiClient.Utils;
@@ -33,9 +34,11 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private readonly IFileDownloadUtil _fileDownloadUtil;
     private readonly IFileUtil _fileUtil;
     private readonly IDirectoryUtil _directoryUtil;
+    private readonly IYamlUtil _yamlUtil;
 
     public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IConfiguration configuration, IGitUtil gitUtil, IDotnetUtil dotnetUtil,
-        IFileDownloadUtil fileDownloadUtil, IFileUtil fileUtil, IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, IOpenApiFixer openApiFixer)
+        IFileDownloadUtil fileDownloadUtil, IFileUtil fileUtil, IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, IYamlUtil yamlUtil,
+        IOpenApiFixer openApiFixer)
     {
         _logger = logger;
         _configuration = configuration;
@@ -46,27 +49,32 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         _fileDownloadUtil = fileDownloadUtil;
         _fileUtil = fileUtil;
         _directoryUtil = directoryUtil;
+        _yamlUtil = yamlUtil;
     }
 
     public async ValueTask Process(CancellationToken cancellationToken = default)
     {
         string gitDirectory = await _gitUtil.CloneToTempDirectory($"https://github.com/soenneker/{Constants.Library.ToLowerInvariantFast()}", cancellationToken: cancellationToken);
 
-        string targetFilePath = Path.Combine(gitDirectory, "openapi.json");
+        string targetFilePath = Path.Combine(gitDirectory, "openapi.yaml");
+        string jsonFilePath = Path.Combine(gitDirectory, "openapi.json");
 
         await _fileUtil.DeleteIfExists(targetFilePath, cancellationToken: cancellationToken);
+        await _fileUtil.DeleteIfExists(jsonFilePath, cancellationToken: cancellationToken);
 
         string openApiDocumentUrl = _configuration["Groq:ClientGenerationUrl"] ?? "https://storage.googleapis.com/stainless-sdk-openapi-specs/groqcloud/groqcloud-debd965baa031e12228c41e538741fa6055bf2813bcd062840a19f84a17cea95.yml";
 
         string? filePath = await _fileDownloadUtil.Download(openApiDocumentUrl,
-            targetFilePath, fileExtension: ".json", cancellationToken: cancellationToken);
+            targetFilePath, fileExtension: ".yaml", cancellationToken: cancellationToken);
 
         if (filePath == null)
             throw new InvalidOperationException("Groq OpenAPI document download failed.");
 
+        await _yamlUtil.SaveAsJson(filePath, jsonFilePath, true, cancellationToken);
+
         string fixedFilePath = Path.Combine(gitDirectory, "openapi.fixed.json");
         await _fileUtil.DeleteIfExists(fixedFilePath, cancellationToken: cancellationToken);
-        await _openApiFixer.Fix(filePath, fixedFilePath, cancellationToken).NoSync();
+        await _openApiFixer.Fix(jsonFilePath, fixedFilePath, cancellationToken).NoSync();
 
         await _kiotaUtil.EnsureInstalled(cancellationToken);
 
