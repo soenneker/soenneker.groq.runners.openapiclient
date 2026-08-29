@@ -5,9 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-
 namespace Soenneker.Groq.Runners.OpenApiClient;
-
 public sealed class ConsoleHostedService : IHostedService
 {
     private readonly ILogger<ConsoleHostedService> _logger;
@@ -24,6 +22,11 @@ public sealed class ConsoleHostedService : IHostedService
         _fileOperationsUtil = fileOperationsUtil;
     }
 
+    /// <summary>
+    /// Runs the OpenAPI client update workflow and requests application shutdown when it finishes.
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when client regeneration has finished and shutdown has been requested.</returns>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         _appLifetime.ApplicationStarted.Register(() =>
@@ -61,6 +64,11 @@ public sealed class ConsoleHostedService : IHostedService
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Completes application-host shutdown after the client update workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when host shutdown has finished.</returns>
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogDebug("Exiting with return code: {exitCode}", _exitCode);
