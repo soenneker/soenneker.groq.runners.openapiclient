@@ -22,7 +22,6 @@ using System.Collections.Generic;
 
 namespace Soenneker.Groq.Runners.OpenApiClient.Utils;
 
-/// <inheritdoc cref="IFileOperationsUtil"/>
 public sealed class FileOperationsUtil : IFileOperationsUtil
 {
     private readonly ILogger<FileOperationsUtil> _logger;
@@ -116,6 +115,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Failed to delete file: {FilePath}", file);
+                        throw;
                     }
                 }
             }
@@ -137,12 +137,14 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to delete directory: {DirectoryPath}", dir);
+                    throw;
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while cleaning the directory: {DirectoryPath}", directoryPath);
+            throw;
         }
     }
 
@@ -155,10 +157,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         bool successful = await _dotnetUtil.Build(projFilePath, true, "Release", false, cancellationToken: cancellationToken);
 
         if (!successful)
-        {
-            _logger.LogError("Build was not successful, exiting...");
-            return;
-        }
+            throw new InvalidOperationException("The generated Groq OpenAPI client did not build successfully.");
 
         string gitHubToken = EnvironmentUtil.GetVariableStrict("GH__TOKEN");
         string name = EnvironmentUtil.GetVariableStrict("GIT__NAME");
