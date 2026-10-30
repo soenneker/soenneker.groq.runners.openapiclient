@@ -61,7 +61,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         await _fileUtil.DeleteIfExists(targetFilePath, cancellationToken: cancellationToken);
         await _fileUtil.DeleteIfExists(jsonFilePath, cancellationToken: cancellationToken);
 
-        string openApiDocumentUrl = _configuration["Groq:ClientGenerationUrl"] ?? "https://storage.googleapis.com/stainless-sdk-openapi-specs/groqcloud/groqcloud-debd965baa031e12228c41e538741fa6055bf2813bcd062840a19f84a17cea95.yml";
+        string openApiDocumentUrl = _configuration["Groq:ClientGenerationUrl"] ?? "https://console.groq.com/docs/api-reference";
 
         string? filePath = await _fileDownloadUtil.Download(openApiDocumentUrl,
             targetFilePath, fileExtension: ".yaml", cancellationToken: cancellationToken);
@@ -69,7 +69,16 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         if (filePath == null)
             throw new InvalidOperationException("Groq OpenAPI document download failed.");
 
-        await _yamlUtil.SaveAsJson(filePath, jsonFilePath, true, cancellationToken);
+        string downloaded = await _fileUtil.Read(filePath, log: false, cancellationToken);
+        if (downloaded.TrimStart().StartsWith("<", StringComparison.Ordinal))
+        {
+            string specification = GroqOpenApiSpecExtractor.Extract(downloaded);
+            await _fileUtil.Write(jsonFilePath, specification, true, cancellationToken);
+        }
+        else
+        {
+            await _yamlUtil.SaveAsJson(filePath, jsonFilePath, true, cancellationToken);
+        }
 
         string fixedFilePath = Path.Combine(gitDirectory, "openapi.fixed.json");
         await _fileUtil.DeleteIfExists(fixedFilePath, cancellationToken: cancellationToken);
