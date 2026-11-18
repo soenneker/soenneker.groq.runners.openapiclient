@@ -70,7 +70,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
             throw new InvalidOperationException("Groq OpenAPI document download failed.");
 
         string downloaded = await _fileUtil.Read(filePath, log: false, cancellationToken);
-        if (downloaded.TrimStart().StartsWith("<", StringComparison.Ordinal))
+        if (downloaded.TrimStart().StartsWith('<'))
         {
             string specification = GroqOpenApiSpecExtractor.Extract(downloaded);
             await _fileUtil.Write(jsonFilePath, specification, true, cancellationToken);
@@ -121,7 +121,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
                     try
                     {
                         await _fileUtil.Delete(file, ignoreMissing: true, log: false, cancellationToken);
-                        _logger.LogInformation("Deleted file: {FilePath}", file);
+                        if (_logger.IsEnabled(LogLevel.Information))
+                            _logger.LogInformation("Deleted file: {FilePath}", file);
                     }
                     catch (Exception ex)
                     {
@@ -144,7 +145,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
                     if (dirFiles.Count == 0 && subDirs.Count == 0)
                     {
                         await _directoryUtil.Delete(dir, cancellationToken);
-                        _logger.LogInformation("Deleted empty directory: {DirectoryPath}", dir);
+                        if (_logger.IsEnabled(LogLevel.Information))
+                            _logger.LogInformation("Deleted empty directory: {DirectoryPath}", dir);
                     }
                 }
                 catch (Exception ex)
